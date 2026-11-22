@@ -12,7 +12,7 @@ export function terminalEditor(env: NodeJS.ProcessEnv): Editor {
     writeFileSync(file, content);
     try {
       const editor = env.VISUAL || env.EDITOR || (process.platform === "win32" ? "notepad" : "vi");
-      const spawnSyncReturns = spawnSync(editor, [file], { stdio: "inherit", shell: true });
+      const spawnSyncReturns = spawnSync(`${editor} "${file}"`, { stdio: "inherit", shell: true });
       if (spawnSyncReturns.status !== 0) return undefined;
       const edited = readFileSync(file, "utf8");
       return edited === content ? undefined : edited;

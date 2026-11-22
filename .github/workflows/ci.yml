@@ -39,3 +39,6 @@ jobs:
       - run: pnpm build
       - run: pnpm test:coverage
       - run: node apps/cli/dist/index.js --help
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: "[scriptblock]::Create((Get-Content scripts/install.ps1 -Raw)) | Out-Null"

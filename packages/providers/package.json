@@ -14,10 +14,12 @@
     "@crit/schema": "workspace:*",
     "@crit/store": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.32.2",
+    "cross-spawn": "7.0.6",
     "tinyexec": "^1.3.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@crit/testkit": "workspace:*"
+    "@crit/testkit": "workspace:*",
+    "@types/cross-spawn": "^6.0.6"
   }
 }

@@ -8,13 +8,16 @@ const TOOLS: [string, string[]][] = [
   ["clip", []],
 ];
 
+const clipInput = (text: string) =>
+  Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, "utf16le")]);
+
 export function copyToClipboard(
   text: string,
   write: (s: string) => void = (s) => process.stdout.write(s),
 ): string {
   for (const [cmd, args] of TOOLS) {
     const spawnSyncReturns = spawnSync(cmd, args, {
-      input: text,
+      input: cmd === "clip" ? clipInput(text) : text,
       stdio: ["pipe", "ignore", "ignore"],
     });
     if (!spawnSyncReturns.error && spawnSyncReturns.status === 0) return cmd;

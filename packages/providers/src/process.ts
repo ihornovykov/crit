@@ -1,7 +1,21 @@
-import { spawn } from "node:child_process";
+import { type ChildProcess, spawn as spawnPlain } from "node:child_process";
 import { accessSync, constants, statSync } from "node:fs";
 import { delimiter, isAbsolute, join } from "node:path";
+import crossSpawn from "cross-spawn";
 import { x } from "tinyexec";
+
+const spawn = process.platform === "win32" ? crossSpawn : spawnPlain;
+
+function killTree(child: ChildProcess): void {
+  if (process.platform === "win32" && child.pid !== undefined) {
+    spawnPlain("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true,
+    }).on("error", () => child.kill());
+    return;
+  }
+  child.kill("SIGTERM");
+}
 
 export function which(command: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
   const exts =
@@ -17,7 +31,11 @@ export function which(command: string, env: NodeJS.ProcessEnv = process.env): st
       return false;
     }
   };
-  if (isAbsolute(command) || command.includes("/")) {
+  if (
+    isAbsolute(command) ||
+    command.includes("/") ||
+    (process.platform === "win32" && command.includes("\\"))
+  ) {
     for (const ext of exts) if (isExec(command + ext)) return command + ext;
     return undefined;
   }
@@ -76,7 +94,7 @@ export async function* streamProcess(opts: {
   };
   let timedOut = false;
   const kill = () => {
-    if (child.exitCode === null && !child.killed) child.kill("SIGTERM");
+    if (child.exitCode === null && !child.killed) killTree(child);
   };
   const timer = opts.timeoutMs
     ? setTimeout(() => {
