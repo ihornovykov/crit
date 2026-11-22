@@ -1,134 +1,255 @@
-# crit
+<div align="center">
 
-Local-first AI code review in your terminal. crit runs the agent CLI you already
-use (Claude Code, Codex or Cursor) headlessly, collects its findings through a
-small MCP server, and shows them in an interactive full-screen UI where you
-check what to keep, apply the fixes, and undo them. Nothing leaves your machine
-except what your agent CLI already sends.
+<img src="assets/banner.svg" alt="crit: AI code review in your terminal" width="100%">
 
-> Version: `1.1.0` (internal distribution; not published to npm). The package name `@crit/cli` and
-> the `$schema` URLs in the generated JSON schemas are placeholders until a final
-> name is chosen.
+<h3>AI code review that runs in your terminal, on your machine.</h3>
+
+crit drives the agent CLI you already use (Claude Code, Codex or Cursor), collects its findings,
+and shows them in an interactive full-screen UI. You pick what to keep, apply the fixes, and undo
+them if you change your mind.
+
+![Node 24+](https://img.shields.io/badge/node-24%2B-339933?logo=node.js&logoColor=white)
+![Version 1.1.0](https://img.shields.io/badge/version-1.1.0-blue)
+![License MIT](https://img.shields.io/badge/license-MIT-green)
+![Platform](https://img.shields.io/badge/macOS%20%7C%20Linux-lightgrey)
+
+[Quick start](#quick-start) ·
+[How it works](#how-it-works) ·
+[Install](#install) ·
+[Usage](#usage) ·
+[Review screen](#the-review-screen) ·
+[GitHub PRs](#github-pull-request-comments) ·
+[Cost](#what-a-review-costs)
+
+</div>
+
+---
+
+## Why crit
+
+- **Local-first.** Nothing leaves your machine except what your agent CLI already sends. No crit
+  server, no account, no API key of its own.
+- **Bring your own agent.** Works with `claude`, `codex` or `cursor-agent`, using the login you
+  already have.
+- **You stay in control.** Every finding is a card you accept or dismiss. Fixes are applied only
+  when you check them, and `crit undo` reverts them.
+- **Read-only agents.** The agent can read code and report findings. Crit applies fixes itself,
+  never the agent. See [Safety](#safety).
+- **Cheap to re-run.** Unchanged files are answered from a cache at zero tokens, and a budget
+  stops runaway reviews.
+- **Fits your workflow.** Review a branch, staged changes, a commit, or a whole project, and post
+  findings straight to a GitHub PR or export a report for CI.
+
+## Quick start
+
+```sh
+# 1. install (macOS / Linux, needs Node 24+, git and a logged-in agent CLI)
+git clone --depth 1 git@github.com:ihornovykov/crit.git && bash crit/scripts/install.sh
+
+# 2. check that everything is ready
+crit doctor
+
+# 3. in any git repository, open the start screen and review
+crit
+```
+
+The first review walks you through choosing a provider. Setup is explained in [Install](#install).
+
+## How it works
+
+```
+  your repo ──► crit picks the scope ──► agent CLI reviews it (read-only)
+                (branch, staged,           Claude Code / Codex / Cursor
+                 commit, paths…)                   │
+                                                   ▼ findings over a small MCP server
+  your working tree ◄── crit applies ◄── you check, dismiss, ask, or propose fixes
+                        checked fixes        in the full-screen review UI
+                        (undo anytime)
+```
+
+1. **Scope.** Choose what to review: this branch against its base, staged changes, one commit,
+   another branch or PR, specific paths, or the whole project.
+2. **Review.** Crit splits the work into runs, skips noise (lockfiles, generated files,
+   binaries) and has your agent review each one, optionally with a second "skeptic" pass that
+   challenges each finding.
+3. **Decide.** Walk through findings in the terminal UI. Check the fixes you want.
+4. **Apply.** Press `enter`. Crit applies the checked fixes with `git apply`, keeps backups, and
+   `crit undo` reverts them.
+
+## Contents
+
+- [Install](#install)
+- [Usage](#usage)
+- [The review screen](#the-review-screen)
+- [GitHub pull request comments](#github-pull-request-comments)
+- [Reviewing someone else's branch](#reviewing-someone-elses-branch)
+- [What a review costs](#what-a-review-costs)
+- [Providers and models](#providers-and-models)
+- [Safety](#safety)
+- [Configuration](#configuration)
+- [Development](#development)
 
 ## Install
 
-Requires Node 24+, git, and at least one of `claude`, `codex`, `cursor-agent`
-logged in.
+> **Distribution.** Version `1.1.0` is distributed internally and is not published to npm. The
+> package name `@crit/cli` and the `$schema` URLs in the generated JSON schemas are placeholders
+> until a final name is chosen.
 
-### Internal team setup (macOS / Linux)
+### Requirements
 
-With read access to this repository and normal Git SSH authentication, run:
+| You need                                            | Why                                        |
+| --------------------------------------------------- | ------------------------------------------ |
+| Node 24+                                            | crit runs on Node's built-in `node:sqlite` |
+| git                                                 | scopes, diffs and applying fixes           |
+| One of `claude`, `codex`, `cursor-agent`, logged in | the agent that does the review             |
+
+The GitHub CLI (`gh`) is **not** needed to install. It is only needed for [PR comments](#github-pull-request-comments).
+
+### Install (macOS / Linux)
 
 ```sh
-git clone --depth 1 git@github.com:essensus-io/crit.git && bash crit/scripts/install.sh
+git clone --depth 1 git@github.com:ihornovykov/crit.git && bash crit/scripts/install.sh
 ```
 
-No GitHub CLI is needed. You need read access to the `essensus-io` organization.
-If you authenticate over HTTPS instead of SSH, use
-`https://github.com/essensus-io/crit.git`.
+The repository is private, so your GitHub account needs access to `ihornovykov/crit`. If you
+authenticate over HTTPS instead of SSH, clone `https://github.com/ihornovykov/crit.git`. The
+organization copy, `essensus-io/crit`, installs the same way.
 
-Setup builds the CLI and installs the `crit` command into `~/.local/bin` without
-sudo or publishing anything to npm. pnpm is downloaded automatically at the
-version pinned by this repository. If setup adds a directory to your shell's
-PATH, open a new terminal afterwards. Each person needs their own logged-in agent
-CLI; the first review guides them through provider selection.
+Setup builds the CLI and puts the `crit` command in `~/.local/bin`, with no sudo and nothing
+published to npm. pnpm is downloaded automatically at the version this repository pins. If setup
+adds a directory to your shell's `PATH`, open a new terminal afterwards. Each person needs their
+own logged-in agent CLI.
 
 Then, from any repository:
 
 ```sh
-crit doctor             # check the local setup
-crit review             # connect a provider and open the review screen
+crit doctor    # check the local setup
+crit review    # connect a provider and open the review screen
 ```
 
-Already have a checkout? Run this from its root:
+### Update
 
-```sh
-pnpm install:cli          # same as: bash scripts/install.sh
-```
-
-To update, run this from your Crit checkout:
+From your crit checkout:
 
 ```sh
 git pull --ff-only && bash scripts/install.sh
 ```
 
-Updates
-preserve each person's provider settings and review history; the installed app
-works even if the checkout is removed. `CRIT_INSTALL_PREFIX` overrides the
-default `~/.local` installation directory.
+Updates keep your provider settings and review history. The installed app keeps working even if
+you delete the checkout.
 
-You can also share `scripts/install.sh` directly. Outside a checkout it fetches
-the source into a temporary directory and removes it after installation. The
-default source is `essensus-io/crit`; set `CRIT_INSTALL_REPO` to another `org/repo` or a full Git URL, and
-optionally `CRIT_INSTALL_REF` to a branch or tag (default: `main`):
-
-```sh
-CRIT_INSTALL_REPO=essensus-io/crit bash install.sh
-```
-
-To remove the command (settings and history are kept):
+### Uninstall
 
 ```sh
 npm uninstall --global --prefix "$HOME/.local" @crit/cli
 ```
 
-## Use
+Settings and history are kept.
+
+<details>
+<summary><b>Other ways to install</b></summary>
+
+<br>
+
+**Already have a checkout?** Run this from its root:
 
 ```sh
-crit                             # the start screen: pick what to review, see the cost, press enter
-crit review                      # the same; reviews never start by themselves
-crit review --now                # skip the start screen and review straight away
-crit review --staged             # staged changes (the start screen opens with it selected)
-crit review --commit HEAD~1      # one commit
-crit review --branch feat/x      # another branch or a PR link, no checkout; you can only post comments
-crit review src/billing          # paths, folders, globs (add --diff for changed files only)
-crit review --all                # the whole project (asks first)
-crit review --dry-run            # files, skipped files, runs and token estimate; no agent calls
-crit review --no-tui --format md # a report for CI: json, md or sarif; --fail-on major exits 3
-crit review --gh                 # review and post the findings to this branch's GitHub PR (needs gh)
-crit open                        # reopen the latest saved review
-crit apply / crit undo           # apply all checked fixes / undo the last apply
-crit history                     # browse, compare (--compare a b), rm, prune --older-than 90d
+pnpm install:cli    # same as: bash scripts/install.sh
 ```
 
-### Pull request comments
+**Sharing the installer.** You can hand someone `scripts/install.sh` on its own. Outside a
+checkout it fetches the source into a temporary directory and removes it afterwards.
 
-`crit review --gh` (or `--pr`) runs the review without the screen and posts every open finding as
-one GitHub review with inline comments on the open pull request of your branch. In the
-review screen, `c` posts the finding you are on to the PR and `enter` applies the checked
-fixes locally; that is all. Press `o` then `g` on the start screen or
-in a review to connect GitHub (it runs `gh auth login` for you). It needs the GitHub CLI (`gh`, logged in
-with `gh auth login`) and finds the PR before the review starts, so a missing PR costs no
-tokens. Findings whose code is not in the PR diff go in the review text, findings already
-posted are skipped on a re-run, and fixes are attached as `diff` blocks.
+| Variable              | Default            | Does                                           |
+| --------------------- | ------------------ | ---------------------------------------------- |
+| `CRIT_INSTALL_REPO`   | `essensus-io/crit` | source repo, as `owner/repo` or a full Git URL |
+| `CRIT_INSTALL_REF`    | `main`             | branch or tag to install                       |
+| `CRIT_INSTALL_PREFIX` | `~/.local`         | installation directory                         |
 
-### Reviewing someone else's branch
+```sh
+CRIT_INSTALL_REPO=ihornovykov/crit bash install.sh
+```
 
-`crit review --branch <name-or-PR-link>`, or **Another branch or PR…** on the start screen, reviews a branch
-you are not on. Nothing is checked out: crit diffs and reads the files straight from git (fetching the
-branch from `origin` if you don't have it) and compares it with the base branch. Fixes cannot be applied
-to your working tree, so `enter` and `x` refuse; press `c` to post a finding to that branch's PR, or add
-`--gh` to post them all.
+</details>
+
+## Usage
+
+Run `crit` with no arguments to open the **start screen**. Reviews never start by themselves.
+
+### Common commands
+
+| Command                       | What it does                                                                                       |
+| ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| `crit`                        | start screen: pick what to review, see the cost, press `enter`                                     |
+| `crit review`                 | same as above                                                                                      |
+| `crit review --now`           | skip the start screen and review straight away                                                     |
+| `crit review --staged`        | review staged changes                                                                              |
+| `crit review --commit HEAD~1` | review one commit                                                                                  |
+| `crit review --branch feat/x` | review another branch or a PR link, no checkout ([details](#reviewing-someone-elses-branch))       |
+| `crit review src/billing`     | review paths, folders or globs (add `--diff` for changed files only)                               |
+| `crit review --all`           | review the whole project (asks first)                                                              |
+| `crit review --dry-run`       | show files, skipped files, runs and a token estimate, with no agent calls                          |
+| `crit review --gh`            | review and post the findings to this branch's GitHub PR ([details](#github-pull-request-comments)) |
+| `crit open`                   | reopen the latest saved review                                                                     |
+| `crit apply` / `crit undo`    | apply all checked fixes / undo the last apply                                                      |
+| `crit history`                | browse past reviews (`--compare a b`, `rm`, `prune --older-than 90d`)                              |
+| `crit doctor`                 | check your setup and print config paths                                                            |
+| `crit providers`              | list and manage provider profiles                                                                  |
+| `crit rules`                  | list the rules crit reads (`crit rules add` adds one)                                              |
+| `crit init`                   | create a project config at `.crit/config.json`                                                     |
+
+### In CI
+
+```sh
+crit review --no-tui --format md --fail-on major
+```
+
+`--format` takes `json`, `md` or `sarif`. With `--fail-on major` crit exits with code `3` when it
+finds anything at that severity or above.
 
 ### The start screen
 
-Running `crit` in a terminal opens the start screen. Pick a scope (this branch against
-its base, staged changes, the last commit, the whole project, or paths you type), see
-how many files, runs and tokens it would cost, and press `enter` to start. Past
-reviews of the repository are listed on the right (`tab`, then `enter` reopens one).
-`o` changes the provider, model, effort and depth. When a review is finished, `q`
-brings you back here; `q` again quits.
+Pick a scope (this branch against its base, staged changes, the last commit, the whole project, or
+paths you type). You see how many files, runs and tokens it would cost, and `enter` starts it.
 
-### The screen
+- Past reviews of the repository are listed on the right. Press `tab`, then `enter` to reopen one.
+- `o` changes the provider, model, effort and depth.
+- When a review finishes, `q` returns here, and `q` again quits.
 
-The review is one scrolling stream: each file with findings shows the code around
-them (changed lines marked `+`, syntax highlighted for TypeScript/JavaScript, Python, Go, Rust, Java, Kotlin, Swift, Ruby, PHP, C/C++/C#, CSS, HTML, JSON, YAML, Markdown, SQL and shell), and every finding is a card right under the lines
-it is about. `○` is pending, `✓` accepted, `✗` dismissed. The bottom line says how
-far you are ("2 of 5 reviewed · 1 accepted") and lists only the keys that work
-right now; press `?` for all of them.
+## The review screen
 
-It runs on the terminal's alternate screen: your terminal's own scrollback is
-untouched and comes back when you leave, and only the panels inside crit scroll.
+The review is one scrolling stream. Each file with findings shows the code around them, with
+changed lines marked `+` and syntax highlighting for TypeScript/JavaScript, Python, Go, Rust, Java,
+Kotlin, Swift, Ruby, PHP, C/C++/C#, CSS, HTML, JSON, YAML, Markdown, SQL and shell. Each finding is a
+card right under the lines it is about.
+
+| Marker | Meaning   |
+| ------ | --------- |
+| `○`    | pending   |
+| `✓`    | accepted  |
+| `✗`    | dismissed |
+
+The bottom line shows your progress ("2 of 5 reviewed · 1 accepted") and lists only the keys that
+work right now. Press `?` for all of them.
+
+It runs on the terminal's alternate screen, so your terminal's own scrollback is untouched and
+comes back when you leave. Only the panels inside crit scroll.
+
+### Keys you need first
+
+| Key             | Does                                                                                   |
+| --------------- | -------------------------------------------------------------------------------------- |
+| `j` `k` `↑` `↓` | next / previous finding (the mouse wheel works too)                                    |
+| `space`         | check the fix so it will be applied (again to uncheck). Unchecked fixes are left alone |
+| `d`             | dismiss with a reason, remembered as a false positive (again to restore)               |
+| `enter`         | apply every checked fix, once you have been through all findings                       |
+| `?`             | help                                                                                   |
+| `q`             | back to the start screen (quit when opened with `crit open`)                           |
+
+<details>
+<summary><b>All keys</b></summary>
+
+<br>
 
 | Key             | Does                                                                                                                            |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -149,28 +270,65 @@ untouched and comes back when you leave, and only the panels inside crit scroll.
 | `g`             | first finding                                                                                                                   |
 | `?` `q`         | help · back to the start screen (quit when opened with `crit open`)                                                             |
 
-Model, provider, effort and depth apply to the _next_ ask, proposal or re-check. While
-a review runs, `m` `P` `E` `D` `S` change the next run instead and `r` retries with
-them; finished files are cached, so a retry only pays for what is left.
+Model, provider, effort and depth apply to the _next_ ask, proposal or re-check. While a review
+runs, `m` `P` `E` `D` `S` change the next run instead, and `r` retries with them. Finished files
+are cached, so a retry only pays for what is left.
 
-## Tokens: what a review costs, and how to control it
+</details>
 
-crit counts **effective tokens** = fresh input + output + 0.1 × cached input, which
-is what actually drives cost and rate limits.
+## GitHub pull request comments
 
-- `--dry-run` shows the plan and estimate first; reviews above 500k estimated
-  tokens ask before starting (`--yes` skips, `budget.confirmTokens` changes it).
-- A hard stop at `budget.maxTokens` (default 2M, `--budget 500k`). The review
-  ends as `partial`, keeps its findings, and a re-run resumes from the cache.
-  Claude Code reports usage per message so it stops mid-run; Codex and Cursor
-  report at the end of a run, so they can overshoot by one run.
-- Per-file cache: unchanged files (same content, hunks, rules, lenses, provider,
-  model) are answered from the cache at zero tokens, including skeptic verdicts.
-- Noise is skipped (lockfiles, generated files, snapshots, binaries, fonts,
-  Markdown/SVG, agent config); `--dry-run` lists what was skipped and why.
-- The base branch is the _nearest_ candidate (fewest commits ahead), so a branch
-  cut from `develop` is not compared with `main`.
-- `--depth`:
+Post findings to a pull request without leaving the terminal.
+
+```sh
+crit review --gh    # or --pr
+```
+
+This runs the review without the screen and posts every open finding as **one GitHub review with
+inline comments** on the open pull request of your branch.
+
+- **Single finding.** In the review screen, `c` posts the finding you are on. `enter` only applies
+  the checked fixes locally.
+- **Connect GitHub.** Press `o` then `g` on the start screen or in a review. It runs
+  `gh auth login` for you.
+- **Needs the GitHub CLI.** Install `gh` and log in with `gh auth login`.
+- **Fails early.** Crit finds the PR before the review starts, so a missing PR costs no tokens.
+- **Findings outside the PR diff** go in the review text instead of inline.
+- **Re-runs are safe.** Findings that were already posted are skipped.
+- **Fixes** are attached as `diff` blocks.
+
+## Reviewing someone else's branch
+
+```sh
+crit review --branch <name-or-PR-link>
+```
+
+You can also choose **Another branch or PR…** on the start screen. Nothing is checked out: crit
+diffs and reads the files straight from git, fetching the branch from `origin` if you don't have
+it, and compares it with the base branch.
+
+Fixes can't be applied to your working tree here, so `enter` and `x` refuse. Press `c` to post one
+finding to that branch's PR, or add `--gh` to post them all.
+
+## What a review costs
+
+Crit counts **effective tokens** = fresh input + output + 0.1 × cached input. That is what
+actually drives cost and rate limits.
+
+| Control           | How it works                                                                                                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Preview**       | `--dry-run` shows the plan and estimate first. Reviews above 500k estimated tokens ask before starting (`--yes` skips, `budget.confirmTokens` changes the limit) |
+| **Hard stop**     | stops at `budget.maxTokens` (default 2M, or `--budget 500k`). The review ends as `partial`, keeps its findings, and a re-run resumes from the cache              |
+| **Cache**         | unchanged files (same content, hunks, rules, lenses, provider, model) are answered at zero tokens, including skeptic verdicts                                    |
+| **Skipped noise** | lockfiles, generated files, snapshots, binaries, fonts, Markdown/SVG and agent config. `--dry-run` lists what was skipped and why                                |
+| **Base branch**   | the _nearest_ candidate (fewest commits ahead), so a branch cut from `develop` isn't compared with `main`                                                        |
+
+Claude Code reports usage per message, so the budget stops it mid-run. Codex and Cursor report at
+the end of a run, so they can overshoot by one run.
+
+### Depth
+
+`--depth quick | standard | deep`
 
 |         | quick                 | standard (default)               | deep                      |
 | ------- | --------------------- | -------------------------------- | ------------------------- |
@@ -181,54 +339,63 @@ is what actually drives cost and rate limits.
 ## Providers and models
 
 ```sh
-crit providers                         # list profiles
+crit providers                                  # list profiles
 crit providers add codex --model gpt-6-sol --effort low
-crit providers models codex --search sol   # live model list from the CLI
-crit review --model opus --effort high     # for one run
+crit providers models codex --search sol        # live model list from the CLI
+crit review --model opus --effort high          # for one run
 ```
 
-Each profile can have a `fastModel` for cheap work (skeptic, map). Models come
-from the CLI itself (`codex debug models`, `cursor-agent --list-models`), with a
-fallback list and "Other…" for any name. Only reasoning efforts the chosen model
-supports are offered. Codex runs with `--ignore-user-config`, so your
-`config.toml` model does not apply; set one on the profile.
+- Each profile can have a `fastModel` for cheap work (the skeptic and map steps).
+- Models come from the CLI itself (`codex debug models`, `cursor-agent --list-models`), with a
+  fallback list and **Other…** for any name.
+- Only reasoning efforts the chosen model supports are offered.
+- Codex runs with `--ignore-user-config`, so your `config.toml` model does not apply. Set one on
+  the profile instead.
 
-## What crit lets the agent do
+## Safety
 
 Reviews are read-only by design. How that is enforced depends on the CLI:
 
-| Provider    | Enforcement                                                                                                                                            |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Claude Code | Only the crit MCP tools plus read tools (`Read`, `Grep`, `Glob`); user settings, other MCP servers and plugins are off. Skeptic runs with no tools.    |
-| Codex       | `--sandbox read-only`, ephemeral session, user config ignored, plugins/apps disabled; crit's MCP tools are pre-approved.                               |
-| Cursor      | `--mode ask` (read-only) — **weaker**: Cursor has no per-run MCP, so findings come back as JSON on stdout and tool access is whatever ask mode allows. |
+| Provider    | Enforcement                                                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude Code | Only the crit MCP tools plus read tools (`Read`, `Grep`, `Glob`). User settings, other MCP servers and plugins are off. The skeptic runs with no tools. |
+| Codex       | `--sandbox read-only`, ephemeral session, user config ignored, plugins/apps disabled. Crit's MCP tools are pre-approved.                                |
+| Cursor      | `--mode ask` (read-only). **Weaker:** Cursor has no per-run MCP, so findings come back as JSON on stdout and tool access is whatever ask mode allows.   |
 
-Fixes are applied by crit itself (`git apply --check`, backups, `crit undo`), never
-by the agent.
+Fixes are applied by crit itself (`git apply --check`, backups, `crit undo`), never by the agent.
 
 ## Configuration
 
-- User: `providers.json` and `config.json` in the crit config directory
-  (`crit doctor` prints the paths; `CRIT_HOME` overrides).
-- Project (optional, committed): `.crit/config.json` — `crit init` creates it.
-- Rules are read from `CLAUDE.md`, `AGENTS.md`, `.cursor/rules`, and
-  `.crit/rules`; `crit rules` lists them, `crit rules add` adds one.
-- JSON schemas for both files ship in `schema/` for editor completion.
-- Data: a SQLite database (Drizzle ORM, migrations embedded) holds reviews,
-  findings, shards and history; `crit history prune` trims it.
+| What                                   | Where                                                                                                                           |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| User settings                          | `providers.json` and `config.json` in the crit config directory. `crit doctor` prints the paths, `CRIT_HOME` overrides them     |
+| Project settings (optional, committed) | `.crit/config.json`, created by `crit init`                                                                                     |
+| Rules                                  | read from `CLAUDE.md`, `AGENTS.md`, `.cursor/rules` and `.crit/rules`. `crit rules` lists them, `crit rules add` adds one       |
+| Editor completion                      | JSON schemas for both config files ship in `schema/`                                                                            |
+| Data                                   | a SQLite database (Drizzle ORM, migrations embedded) holds reviews, findings, shards and history. `crit history prune` trims it |
 
 ## Development
 
 ```sh
 pnpm install
-pnpm check && pnpm check-types && pnpm test      # lint/format, types, unit + e2e
-pnpm test:coverage                               # thresholds enforced
-CRIT_LIVE=1 pnpm test:live                       # real agent CLIs, opt-in, spends tokens
-pnpm --filter @crit/store db:generate            # after editing the Drizzle schema
+pnpm check && pnpm check-types && pnpm test   # lint/format, types, unit + e2e
+pnpm test:coverage                            # thresholds enforced
+CRIT_LIVE=1 pnpm test:live                    # real agent CLIs, opt-in, spends tokens
+pnpm --filter @crit/store db:generate         # after editing the Drizzle schema
 ```
 
-Monorepo (pnpm + Turborepo): `schema` (Zod), `store` (Drizzle + `node:sqlite`),
-`core` (scope, rules, sharding, pipeline), `providers` (adapters), `mcp`,
-`testkit` (fake agent), `apps/cli`.
+Monorepo (pnpm + Turborepo):
 
-MIT licensed.
+| Package     | Holds                              |
+| ----------- | ---------------------------------- |
+| `schema`    | Zod schemas                        |
+| `store`     | Drizzle + `node:sqlite`            |
+| `core`      | scope, rules, sharding, pipeline   |
+| `providers` | agent adapters                     |
+| `mcp`       | the findings MCP server            |
+| `testkit`   | fake agent for tests               |
+| `apps/cli`  | the `crit` command and terminal UI |
+
+## License
+
+MIT. See [LICENSE](LICENSE).

@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="600" viewBox="0 0 1280 600" role="img" aria-labelledby="t d">
+  <title id="t">crit: AI code review in your terminal</title>
+  <desc id="d">The crit review screen in a terminal: a finding card with a fix to check, next to the crit name and tagline.</desc>
+  <defs>
+    <radialGradient id="glow" cx="0.8" cy="0.4" r="0.55">
+      <stop offset="0" stop-color="#a5b4fc" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#a5b4fc" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.1" cy="0.9" r="0.5">
+      <stop offset="0" stop-color="#86efac" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#86efac" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="600" fill="#0a0b0f"/>
+  <rect width="1280" height="600" fill="url(#glow)"/>
+  <rect width="1280" height="600" fill="url(#glow2)"/>
+
+  <g font-family="ui-monospace,'SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace">
+
+    <!-- left: pitch -->
+    <text x="72" y="140" font-size="17" fill="#9ca3af">~/shop <tspan fill="#a5b4fc" font-weight="700">$</tspan> <tspan fill="#e5e7eb">crit review</tspan></text>
+
+    <text x="68" y="278" font-size="120" font-weight="800" fill="#86efac" letter-spacing="-4">crit</text>
+    <rect x="372" y="204" width="42" height="76" fill="#a5b4fc"/>
+
+    <text x="72" y="340" font-size="27" font-weight="700" fill="#e5e7eb">Code review that stays</text>
+    <text x="72" y="376" font-size="27" font-weight="700" fill="#e5e7eb">on your machine.</text>
+
+    <text x="72" y="424" font-size="17" fill="#9ca3af">Your agent finds the bugs.</text>
+    <text x="72" y="450" font-size="17" fill="#9ca3af">You decide what ships.</text>
+
+    <text x="72" y="500" font-size="15"><tspan fill="#9ca3af" opacity="0.6">[agents: </tspan><tspan fill="#a5b4fc">claude · codex · cursor</tspan><tspan fill="#9ca3af" opacity="0.6">]</tspan></text>
+    <text x="72" y="526" font-size="15"><tspan fill="#9ca3af" opacity="0.6">[runs: </tspan><tspan fill="#86efac">local</tspan><tspan fill="#9ca3af" opacity="0.6">] [agent: </tspan><tspan fill="#67e8f9">read-only</tspan><tspan fill="#9ca3af" opacity="0.6">] [fixes: </tspan><tspan fill="#fb923c">undoable</tspan><tspan fill="#9ca3af" opacity="0.6">]</tspan></text>
+
+    <!-- right: terminal window -->
+    <g filter="url(#shadow)">
+      <rect x="610" y="50" width="630" height="492" rx="12" fill="#0f1015" stroke="#2a2d3a"/>
+      <path d="M610 62a12 12 0 0 1 12-12h606a12 12 0 0 1 12 12v28H610z" fill="#171920"/>
+    </g>
+    <circle cx="634" cy="70" r="6" fill="#f87171"/>
+    <circle cx="656" cy="70" r="6" fill="#fde047"/>
+    <circle cx="678" cy="70" r="6" fill="#86efac"/>
+    <text x="925" y="75" text-anchor="middle" font-size="13" fill="#9ca3af" opacity="0.8">crit review · feat/checkout</text>
+
+    <g font-size="15">
+      <text x="636" y="124"><tspan fill="#a5b4fc" font-weight="700">src/cart/total.ts</tspan><tspan fill="#9ca3af" opacity="0.6">  ·  2 findings</tspan></text>
+
+      <text x="636" y="154" fill="#9ca3af" opacity="0.6">  41    const subtotal = items.reduce(add, 0);</text>
+      <text x="636" y="178" fill="#9ca3af" opacity="0.6">  42    const taxRate = rates[region];</text>
+
+      <!-- focused finding: dashed card like the app -->
+      <rect x="628" y="196" width="598" height="168" fill="none" stroke="#9ca3af" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="6 5"/>
+      <text x="644" y="226"><tspan fill="#86efac" font-weight="700">[x]</tspan> <tspan fill="#fb923c" font-weight="700">MAJ</tspan>  <tspan fill="#e5e7eb" font-weight="700">Float rounding drifts the total</tspan></text>
+      <text x="644" y="252" fill="#9ca3af">    Money is summed as floats, so a cart can</text>
+      <text x="644" y="272" fill="#9ca3af">    drift by a cent. Round to minor units.</text>
+      <text x="644" y="306" fill="#f87171">  43 - return subtotal * (1 + taxRate);</text>
+      <text x="644" y="330"><tspan fill="#86efac">  43 + </tspan><tspan fill="#86efac">return </tspan><tspan fill="#67e8f9">Math</tspan><tspan fill="#86efac">.round(subtotal * (1 + taxRate));</tspan></text>
+      <text x="644" y="352" fill="#a5b4fc" font-size="13">    fix checked · enter to apply</text>
+
+      <!-- collapsed findings -->
+      <text x="636" y="396"><tspan fill="#9ca3af" font-weight="700">[ ]</tspan> <tspan fill="#fde047" font-weight="700">MIN</tspan>  <tspan fill="#e5e7eb">Unused import "round"</tspan></text>
+      <text x="636" y="420"><tspan fill="#9ca3af" font-weight="700">   </tspan> <tspan fill="#9ca3af" font-weight="700">NIT</tspan>  <tspan fill="#9ca3af">Rename tmp to subtotal</tspan></text>
+    </g>
+
+    <!-- footer like the app: rule, keys, progress -->
+    <line x1="624" y1="450" x2="1226" y2="450" stroke="#9ca3af" stroke-opacity="0.35"/>
+    <text x="636" y="480" font-size="15"><tspan fill="#e5e7eb" font-weight="700">space</tspan><tspan fill="#9ca3af"> check</tspan><tspan fill="#9ca3af" opacity="0.5"> · </tspan><tspan fill="#e5e7eb" font-weight="700">d</tspan><tspan fill="#9ca3af"> skip</tspan><tspan fill="#9ca3af" opacity="0.5"> · </tspan><tspan fill="#e5e7eb" font-weight="700">enter</tspan><tspan fill="#9ca3af"> apply</tspan><tspan fill="#9ca3af" opacity="0.5"> · </tspan><tspan fill="#e5e7eb" font-weight="700">?</tspan><tspan fill="#9ca3af"> help</tspan></text>
+    <text x="636" y="508" font-size="15"><tspan fill="#9ca3af">2 of 5 reviewed · </tspan><tspan fill="#86efac">1 accepted</tspan><tspan fill="#9ca3af" opacity="0.5">  ·  </tspan><tspan fill="#9ca3af">○ 3  </tspan><tspan fill="#86efac">✓ 1  </tspan><tspan fill="#fde047">✗ 1</tspan></text>
+  </g>
+</svg>
