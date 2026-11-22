@@ -11,7 +11,7 @@ them if you change your mind.
 ![Node 24+](https://img.shields.io/badge/node-24%2B-339933?logo=node.js&logoColor=white)
 ![Version 1.1.0](https://img.shields.io/badge/version-1.1.0-blue)
 ![License MIT](https://img.shields.io/badge/license-MIT-green)
-![Platform](https://img.shields.io/badge/macOS%20%7C%20Linux-lightgrey)
+![Platform](https://img.shields.io/badge/macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
 
 [Quick start](#quick-start) ·
 [How it works](#how-it-works) ·
@@ -43,7 +43,7 @@ them if you change your mind.
 ## Quick start
 
 ```sh
-# 1. install (macOS / Linux, needs Node 24+, git and a logged-in agent CLI)
+# 1. install (macOS / Linux; on Windows see Install below. Needs Node 24+, git and a logged-in agent CLI)
 git clone --depth 1 git@github.com:ihornovykov/crit.git && bash crit/scripts/install.sh
 
 # 2. check that everything is ready
@@ -57,14 +57,26 @@ The first review walks you through choosing a provider. Setup is explained in [I
 
 ## How it works
 
-```
-  your repo ──► crit picks the scope ──► agent CLI reviews it (read-only)
-                (branch, staged,           Claude Code / Codex / Cursor
-                 commit, paths…)                   │
-                                                   ▼ findings over a small MCP server
-  your working tree ◄── crit applies ◄── you check, dismiss, ask, or propose fixes
-                        checked fixes        in the full-screen review UI
-                        (undo anytime)
+```mermaid
+flowchart LR
+    repo["<b>Your repo</b><br/>branch · staged · commit · paths"]
+    scope["<b>1. Scope</b><br/>crit picks the files"]
+    agent["<b>2. Review</b><br/>Claude Code · Codex · Cursor<br/>(read-only)"]
+    ui["<b>3. Decide</b><br/>full-screen review UI<br/>check · dismiss · ask · propose"]
+    apply["<b>4. Apply</b><br/>crit applies checked fixes"]
+    tree["<b>Your working tree</b>"]
+
+    repo --> scope --> agent
+    agent -- "findings over a<br/>small MCP server" --> ui
+    ui --> apply --> tree
+    tree -. "crit undo" .-> apply
+
+    classDef you fill:#1d2a22,stroke:#86efac,color:#86efac
+    classDef crit fill:#1f2340,stroke:#a5b4fc,color:#e5e7eb
+    classDef agentc fill:#2e2113,stroke:#fb923c,color:#e5e7eb
+    class repo,tree you
+    class scope,ui,apply crit
+    class agent agentc
 ```
 
 1. **Scope.** Choose what to review: this branch against its base, staged changes, one commit,
@@ -120,6 +132,19 @@ published to npm. pnpm is downloaded automatically at the version this repositor
 adds a directory to your shell's `PATH`, open a new terminal afterwards. Each person needs their
 own logged-in agent CLI.
 
+### Install (Windows)
+
+Use PowerShell (Windows Terminal recommended):
+
+```powershell
+git clone --depth 1 git@github.com:ihornovykov/crit.git; powershell -NoProfile -ExecutionPolicy Bypass -File crit\scripts\install.ps1
+```
+
+Setup builds the CLI, installs it into `%LOCALAPPDATA%\crit` and adds that folder to your user
+`PATH`. Open a new terminal afterwards. `CRIT_INSTALL_PREFIX`, `CRIT_INSTALL_REPO` and
+`CRIT_INSTALL_REF` work the same as on macOS and Linux. Agent CLIs installed with npm (`.cmd`
+shims) are supported, and `$EDITOR` defaults to `notepad`.
+
 Then, from any repository:
 
 ```sh
@@ -132,8 +157,10 @@ crit review    # connect a provider and open the review screen
 From your crit checkout:
 
 ```sh
-git pull --ff-only && bash scripts/install.sh
+git pull --ff-only && pnpm install:cli
 ```
+
+`pnpm install:cli` runs `scripts/install.sh` on macOS and Linux and `scripts\install.ps1` on Windows.
 
 Updates keep your provider settings and review history. The installed app keeps working even if
 you delete the checkout.
@@ -154,7 +181,7 @@ Settings and history are kept.
 **Already have a checkout?** Run this from its root:
 
 ```sh
-pnpm install:cli    # same as: bash scripts/install.sh
+pnpm install:cli    # runs scripts/install.sh, or scripts\install.ps1 on Windows
 ```
 
 **Sharing the installer.** You can hand someone `scripts/install.sh` on its own. Outside a
